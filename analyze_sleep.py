@@ -38,11 +38,39 @@ def read_chrome_history(chrome_history_path):
     df.dropna(subset=["datetime"], inplace=True) # drop rows with no datetime
     return df
 
-def read_youtube_history(youtube_history_path):
-    #poop
+def read_youtube_json(json_path, event_label=None):
+    if not os.path.exists(json_path):
+        print(f"YouTube JSON file not found: {json_path}")
+        return pd.DataFrame(columns=['datetime', 'title', 'event_type'])
+
+    with open(json_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    rows = []
+    for item in data:
+        raw_time = item.get("time")
+        title = item.get("title", "")
+        the_event_type = event_label
+
+        try:
+            dt = date_parser.parse(raw_time)
+        except Exception:
+            dt = None
+
+        rows.append({
+            "datetime": dt,
+            "title": title,
+            "event_type": the_event_type
+        })
+
+    df = pd.DataFrame(rows)
+    df.dropna(subset=["datetime"], inplace=True)
+    return df  
      
-
-
+def read_youtube_history(watch_history_path, search_history_path):
+    watch_df = read_youtube_json(watch_history_path, "watch")
+    search_df = read_youtube_json(search_history_path, "search")
+    return pd.concat([watch_df, search_df], ignore_index=True)
 
 
 
@@ -53,8 +81,12 @@ def read_youtube_history(youtube_history_path):
 def main():
     chrome_history_path = os.path.join("takeout", "chrome", "History.json")
     chrome_history = read_chrome_history(chrome_history_path)
+    print("Chrome History read: ", chrome_history.shape)
 
-    youtube_history_path = os.path.join("takeout", "youtube", "history", "watch-history.json")
+    watch_history_path = os.path.join("takeout", "youtube", "history", "watch-history.json")
+    search_history_path = os.path.join("takeout", "youtube", "history", "search-history.json")
+    youtube_df = read_youtube_history(watch_history_path, search_history_path)
+    print("Youtube History read: ", youtube_df.shape)
 
 if __name__ == "__main__":
     main()
